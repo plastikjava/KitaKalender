@@ -1,3 +1,18 @@
+// Helper to format local Date object to YYYY-MM-DD without timezone shifts
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Helper to format local Date object to HH:MM
+function formatLocalTime(date) {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
 class GoogleCalendarAPI {
   constructor() {
     this.clientId = localStorage.getItem('gcal_client_id') || '';
@@ -231,20 +246,19 @@ class GoogleCalendarAPI {
       localEvent.startDate = apiEvent.start.date;
       
       // Google API returns exclusive date for allDay end. For local input, let's convert back
-      // e.g. Start 2026-07-04, End 2026-07-05 (which means all day 4th July). Let's convert end to 2026-07-04
-      const endDateVal = new Date(apiEvent.end.date);
-      endDateVal.setDate(endDateVal.getDate() - 1);
-      localEvent.endDate = endDateVal.toISOString().split('T')[0];
+      const endD = new Date(apiEvent.end.date + 'T00:00:00'); // parse as local midnight
+      endD.setDate(endD.getDate() - 1);
+      localEvent.endDate = formatLocalDate(endD);
     } else {
       // Timed event
-      // Extract dates and times
-      const startDateTime = apiEvent.start.dateTime; // 2026-07-04T12:00:00+02:00
-      const endDateTime = apiEvent.end.dateTime;
-
-      localEvent.startDate = startDateTime.split('T')[0];
-      localEvent.startTime = startDateTime.split('T')[1].substring(0, 5);
-      localEvent.endDate = endDateTime.split('T')[0];
-      localEvent.endTime = endDateTime.split('T')[1].substring(0, 5);
+      // Parse ISO strings safely in local timezone
+      const startDateObj = new Date(apiEvent.start.dateTime);
+      const endDateObj = new Date(apiEvent.end.dateTime);
+      
+      localEvent.startDate = formatLocalDate(startDateObj);
+      localEvent.startTime = formatLocalTime(startDateObj);
+      localEvent.endDate = formatLocalDate(endDateObj);
+      localEvent.endTime = formatLocalTime(endDateObj);
     }
 
     return localEvent;

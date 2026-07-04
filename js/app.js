@@ -1,3 +1,11 @@
+// Helper to format local Date object to YYYY-MM-DD without timezone shifts
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 // Global references
 let renderer;
 let confirmModal, eventModal, settingsModal;
@@ -51,7 +59,7 @@ function openEventModal(eventData = {}) {
   eventIdInput.value = eventData.id || '';
   eventTitleInput.value = eventData.title || '';
   
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = formatLocalDate(new Date());
   eventStartDateInput.value = eventData.startDate || todayISO;
   eventEndDateInput.value = eventData.endDate || eventData.startDate || todayISO;
   
@@ -307,8 +315,8 @@ function initApp() {
           return;
         }
       } else {
-        const start = new Date(eventData.startDate);
-        const end = new Date(eventData.endDate);
+        const start = new Date(eventData.startDate + 'T00:00:00');
+        const end = new Date(eventData.endDate + 'T00:00:00');
         if (end < start) {
           showToast('Das Enddatum darf nicht vor dem Startdatum liegen.', 'warning');
           return;
@@ -317,7 +325,7 @@ function initApp() {
         // Adjust for Google API exclusive end date
         const adjustedEnd = new Date(end);
         adjustedEnd.setDate(adjustedEnd.getDate() + 1);
-        eventData.endDate = adjustedEnd.toISOString().split('T')[0];
+        eventData.endDate = formatLocalDate(adjustedEnd);
       }
 
       renderer.showLoading(true);
@@ -496,14 +504,14 @@ function initApp() {
         eventData.endTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
         
         if (endMinutes >= 1440) {
-          const nextDay = new Date(startDate);
+          const nextDay = new Date(startDate + 'T00:00:00');
           nextDay.setDate(nextDay.getDate() + 1);
-          eventData.endDate = nextDay.toISOString().split('T')[0];
+          eventData.endDate = formatLocalDate(nextDay);
         }
       } else {
-        const end = new Date(startDate);
+        const end = new Date(startDate + 'T00:00:00');
         end.setDate(end.getDate() + 1);
-        eventData.endDate = end.toISOString().split('T')[0];
+        eventData.endDate = formatLocalDate(end);
       }
 
       renderer.showLoading(true);

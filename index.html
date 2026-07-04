@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Kita Kalender">
-  <link rel="apple-touch-icon" href="icons/icon-192.png?v=8">
-  <link rel="icon" type="image/png" href="icons/icon-192.png?v=8">
+  <link rel="apple-touch-icon" href="icons/icon-192.png?v=9">
+  <link rel="icon" type="image/png" href="icons/icon-192.png?v=9">
   <meta name="theme-color" content="#4f46e5">
 
   <!-- Fonts & Icons -->
@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css?v=8">
+  <link rel="stylesheet" href="css/styles.css?v=9">
 </head>
 <body>
   <!-- Global Error Logger for UI Debugging -->
@@ -326,17 +326,17 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   
   <!-- Custom Application Scripts -->
-  <script src="js/templates.js?v=8"></script>
-  <script src="js/parser.js?v=8"></script>
-  <script src="js/google-calendar.js?v=8"></script>
-  <script src="js/calendar.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/templates.js?v=9"></script>
+  <script src="js/parser.js?v=9"></script>
+  <script src="js/google-calendar.js?v=9"></script>
+  <script src="js/calendar.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 
   <!-- Service Worker Register Script -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=8')
+        navigator.serviceWorker.register('./sw.js?v=9')
           .then(reg => console.log('Service Worker erfolgreich registriert!', reg.scope))
           .catch(err => console.log('Service Worker Registrierung fehlgeschlagen:', err));
       });
