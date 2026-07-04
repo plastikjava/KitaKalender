@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kita-kalender-v1';
+const CACHE_NAME = 'kita-kalender-v2';
 const ASSETS = [
   './',
   './index.html',
