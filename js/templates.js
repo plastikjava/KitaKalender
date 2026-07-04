@@ -68,6 +68,27 @@ const KITA_TEMPLATES = [
     category: 'schliessung',
     isAllDay: true,
     description: 'Teamtag zur Konzeptionsarbeit. Die Kita bleibt geschlossen.'
+  },
+  {
+    name: 'Urlaub (Mitarbeiter)',
+    title: 'Urlaub [Name]',
+    category: 'urlaub',
+    isAllDay: true,
+    description: 'Abwesenheit wegen Urlaub.'
+  },
+  {
+    name: 'Fortbildung',
+    title: 'Fortbildung [Name]',
+    category: 'urlaub',
+    isAllDay: true,
+    description: 'Fortbildung für Teammitglieder.'
+  },
+  {
+    name: 'Krankmeldung',
+    title: 'Krankmeldung [Name]',
+    category: 'urlaub',
+    isAllDay: true,
+    description: 'Abwesenheit wegen Krankheit.'
   }
 ];
 
@@ -86,6 +107,7 @@ function renderTemplates(containerId, onSelectCallback) {
     else if (template.category === 'ausflug') label = '🟡 ';
     else if (template.category === 'feier') label = '🟣 ';
     else if (template.category === 'schliessung') label = '🟠 ';
+    else if (template.category === 'urlaub') label = '🌸 ';
     
     tag.textContent = `${label}${template.name}`;
     tag.addEventListener('click', () => {

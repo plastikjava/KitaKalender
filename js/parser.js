@@ -37,6 +37,8 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     result.category = 'feier';
   } else if (lowerText.includes('schließ') || lowerText.includes('schliess') || lowerText.includes('ferien') || lowerText.includes('brückentag') || lowerText.includes('feiertag')) {
     result.category = 'schliessung';
+  } else if (lowerText.includes('urlaub') || lowerText.includes('krank') || lowerText.includes('abwesend') || lowerText.includes('abwesenheit') || lowerText.includes('fortbildung') || lowerText.includes('fehlt') || lowerText.includes('freizeit') || lowerText.includes('freistellung') || lowerText.includes('dienstbefreiung') || /\bfrei\b/i.test(text)) {
+    result.category = 'urlaub';
   } else {
     result.category = 'team'; // default
   }
@@ -46,35 +48,92 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     result.isAllDay = true;
   }
 
-  // 3. Date Parsing
+  // 3. Date & Date Range Parsing
   let parsedDate = new Date(referenceDate);
+  let parsedEndDate = new Date(referenceDate);
   let dateFound = false;
 
-  // Relative Date: heute, morgen, übermorgen (Unicode boundary safe)
-  if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])heute(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
-    parsedDate = new Date(referenceDate);
-    dateFound = true;
-  } else if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])morgen(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
-    parsedDate.setDate(referenceDate.getDate() + 1);
-    dateFound = true;
-  } else if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])übermorgen(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
-    parsedDate.setDate(referenceDate.getDate() + 2);
-    dateFound = true;
+  // A. Month name range: "10. bis 15. August" or "10. bis 15. August" (makes spaces optional)
+  if (!dateFound) {
+    const monthsGerman = [
+      'januar', 'februar', 'märz', 'april', 'mai', 'juni', 
+      'juli', 'august', 'september', 'oktober', 'november', 'dezember'
+    ];
+    for (let m = 0; m < 12; m++) {
+      const monthName = monthsGerman[m];
+      const rangeMonthRegex = new RegExp(`\\b(\\d{1,2})\\.?\\s*(?:bis|und|-\\s*)\\s*(\\d{1,2})\\.?\\s*${monthName}\\b`, 'i');
+      const match = text.match(rangeMonthRegex);
+      if (match) {
+        const startDay = parseInt(match[1], 10);
+        const endDay = parseInt(match[2], 10);
+        const year = referenceDate.getFullYear();
+        
+        parsedDate = new Date(year, m, startDay);
+        parsedEndDate = new Date(year, m, endDay);
+        
+        if (parsedDate < referenceDate && (referenceDate - parsedDate) > (1000 * 60 * 60 * 24 * 90)) {
+          parsedDate.setFullYear(year + 1);
+          parsedEndDate.setFullYear(year + 1);
+        }
+        dateFound = true;
+        break;
+      }
+    }
   }
 
-  // Relative Weekdays (Montag, Dienstag, etc.)
-  const weekdaysGerman = {
-    'sonntag': 0, 'so': 0,
-    'montag': 1, 'mo': 1,
-    'dienstag': 2, 'di': 2,
-    'mittwoch': 3, 'mi': 3,
-    'donnerstag': 4, 'do': 4,
-    'freitag': 5, 'fr': 5,
-    'samstag': 6, 'sa': 6
-  };
-
-  // Check if text has weekday name
+  // B. Numerical range: "10.08. bis 15.08." or "10.08. - 15.08."
   if (!dateFound) {
+    const rangeNumericRegex = /\b(\d{1,2})\.(\d{1,2})\.?(?:(\d{4})\b)?\s*(?:bis|und|-\\s*)\s*(\d{1,2})\.(\d{1,2})\.?(?:(\d{4})\b)?/i;
+    const match = text.match(rangeNumericRegex);
+    if (match) {
+      const startDay = parseInt(match[1], 10);
+      const startMonth = parseInt(match[2], 10) - 1;
+      const startYear = match[3] ? parseInt(match[3], 10) : referenceDate.getFullYear();
+      
+      const endDay = parseInt(match[4], 10);
+      const endMonth = parseInt(match[5], 10) - 1;
+      const endYear = match[6] ? parseInt(match[6], 10) : startYear;
+      
+      parsedDate = new Date(startYear, startMonth, startDay);
+      parsedEndDate = new Date(endYear, endMonth, endDay);
+      
+      if (parsedDate < referenceDate && (referenceDate - parsedDate) > (1000 * 60 * 60 * 24 * 90)) {
+        parsedDate.setFullYear(startYear + 1);
+        parsedEndDate.setFullYear(endYear + 1);
+      }
+      dateFound = true;
+    }
+  }
+
+  // C. Relative Date: heute, morgen, übermorgen
+  if (!dateFound) {
+    if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])heute(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
+      parsedDate = new Date(referenceDate);
+      parsedEndDate = new Date(referenceDate);
+      dateFound = true;
+    } else if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])morgen(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
+      parsedDate.setDate(referenceDate.getDate() + 1);
+      parsedEndDate.setDate(referenceDate.getDate() + 1);
+      dateFound = true;
+    } else if (/(?:^|[^a-zA-Z0-9äöüÄÖÜß])übermorgen(?:$|[^a-zA-Z0-9äöüÄÖÜß])/i.test(text)) {
+      parsedDate.setDate(referenceDate.getDate() + 2);
+      parsedEndDate.setDate(referenceDate.getDate() + 2);
+      dateFound = true;
+    }
+  }
+
+  // D. Relative Weekdays (Montag, Dienstag, etc.)
+  if (!dateFound) {
+    const weekdaysGerman = {
+      'sonntag': 0, 'so': 0,
+      'montag': 1, 'mo': 1,
+      'dienstag': 2, 'di': 2,
+      'mittwoch': 3, 'mi': 3,
+      'donnerstag': 4, 'do': 4,
+      'freitag': 5, 'fr': 5,
+      'samstag': 6, 'sa': 6
+    };
+
     for (const [dayName, dayIndex] of Object.entries(weekdaysGerman)) {
       const weekdayRegex = new RegExp(`\\b(nächsten|nächster|nächste|am)?\\s*${dayName}\\b`, 'i');
       const match = text.match(weekdayRegex);
@@ -87,15 +146,15 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
         if (isNextWeek && dayIndex !== currentDayIndex) daysToAdd += 7; // force next week
         
         parsedDate.setDate(referenceDate.getDate() + daysToAdd);
+        parsedEndDate.setDate(referenceDate.getDate() + daysToAdd);
         dateFound = true;
         break;
       }
     }
   }
 
-  // Explicit Date (e.g. 15.07.2026, 15.07., 15.07)
+  // E. Explicit Date (e.g. 15.07.2026, 15.07., 15.07)
   if (!dateFound) {
-    // Matches DD.MM.YYYY or DD.MM. or DD.MM (makes trailing dot or year optional)
     const numericDateRegex = /\b(\d{1,2})\.(\d{1,2})\.?(?:(\d{4})\b)?/;
     const numMatch = text.match(numericDateRegex);
     if (numMatch) {
@@ -104,15 +163,16 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
       const year = numMatch[3] ? parseInt(numMatch[3], 10) : referenceDate.getFullYear();
       
       parsedDate = new Date(year, month, day);
-      // If year was omitted and date is in the past by > 3 months, assume next year
+      parsedEndDate = new Date(year, month, day);
       if (!numMatch[3] && parsedDate < referenceDate && (referenceDate - parsedDate) > (1000 * 60 * 60 * 24 * 90)) {
         parsedDate.setFullYear(year + 1);
+        parsedEndDate.setFullYear(year + 1);
       }
       dateFound = true;
     }
   }
 
-  // Month Names (e.g. "12. August" or "12 August" or "am 5. Juli")
+  // F. Month Names (e.g. "12. August" or "12 August")
   if (!dateFound) {
     const monthsGerman = [
       'januar', 'februar', 'märz', 'april', 'mai', 'juni', 
@@ -120,15 +180,16 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     ];
     for (let m = 0; m < 12; m++) {
       const monthName = monthsGerman[m];
-      // Optional dot after the day number
       const monthRegex = new RegExp(`\\b(\\d{1,2})\\.?\\s*${monthName}\\b`, 'i');
       const match = text.match(monthRegex);
       if (match) {
         const day = parseInt(match[1], 10);
         const year = referenceDate.getFullYear();
         parsedDate = new Date(year, m, day);
+        parsedEndDate = new Date(year, m, day);
         if (parsedDate < referenceDate && (referenceDate - parsedDate) > (1000 * 60 * 60 * 24 * 90)) {
           parsedDate.setFullYear(year + 1);
+          parsedEndDate.setFullYear(year + 1);
         }
         dateFound = true;
         break;
@@ -136,15 +197,14 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     }
   }
 
-  // Save parsed date locally
-  const dateStr = formatLocalDate(parsedDate);
-  result.startDate = dateStr;
-  result.endDate = dateStr;
+  // Save parsed dates
+  result.startDate = formatLocalDate(parsedDate);
+  result.endDate = formatLocalDate(dateFound ? parsedEndDate : parsedDate);
 
   // 4. Time Parsing
   let timeFound = false;
 
-  // Handle German word hours: "halb [Stunde]" (e.g., halb drei -> 14:30)
+  // Handle German word hours: "halb [Stunde]"
   const halbRegex = /\bhalb\s+(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d{1,2})\b/i;
   const halbMatch = text.match(halbRegex);
   if (halbMatch) {
@@ -158,7 +218,7 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
       const numHour = parseInt(hourWord, 10);
       if (!isNaN(numHour)) {
         hour = numHour - 1;
-        if (hour < 12) hour += 12; // default to afternoon
+        if (hour < 12) hour += 12;
       }
     }
     if (hour !== undefined) {
@@ -169,7 +229,7 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     }
   }
 
-  // Time range: "(von) [H:MM] bis [H:MM] Uhr" or "(von) [H] bis [H] Uhr" (makes 'von' optional)
+  // Time range: "(von) [H:MM] bis [H:MM] Uhr"
   if (!timeFound) {
     const rangeRegex = /\b(?:von\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:uhr)?\s*bis\s*(\d{1,2})(?::(\d{2}))?\s*uhr\b/i;
     const rangeMatch = text.match(rangeRegex);
@@ -188,7 +248,7 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     }
   }
 
-  // Single Time with "Uhr" but optional "um/ab" (e.g. "Dienstag 14 Uhr", "um 14 Uhr")
+  // Single Time with "Uhr"
   if (!timeFound) {
     const singleTimeUhrRegex = /\b(?:um|ab)?\s*(\d{1,2})(?::(\d{2}))?\s*uhr\b/i;
     const timeMatch = text.match(singleTimeUhrRegex);
@@ -205,7 +265,7 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     }
   }
 
-  // Single Digital Time: "(um/ab) HH:MM" (e.g. "um 14:30")
+  // Single Digital Time: "(um/ab) HH:MM"
   if (!timeFound) {
     const digitalTimeRegex = /\b(?:um|ab)?\s*(\d{1,2}):(\d{2})\b/i;
     const timeMatch = text.match(digitalTimeRegex);
@@ -222,6 +282,11 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
     }
   }
 
+  // Default to All-Day for Vacation (Urlaub) and Closures (Schließung) if no specific time was parsed
+  if ((result.category === 'urlaub' || result.category === 'schliessung') && !timeFound) {
+    result.isAllDay = true;
+  }
+
   // Omit time altogether if allDay
   if (result.isAllDay) {
     result.startTime = '';
@@ -229,7 +294,6 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
   }
 
   // 5. Clean up title
-  // Strip out parsed time, dates, and relative expressions
   let cleanedTitle = text;
   
   // Strip range times
@@ -240,7 +304,12 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
   cleanedTitle = cleanedTitle.replace(/\b(?:um|ab)?\s*\d{1,2}:\d{2}\b/gi, '');
   // Strip "halb [X]" expressions
   cleanedTitle = cleanedTitle.replace(/\bhalb\s+(eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d{1,2})\b/gi, '');
-  // Strip relative date keywords (Unicode boundary safe)
+  
+  // Strip date range expressions (e.g. "10. bis 15. August")
+  cleanedTitle = cleanedTitle.replace(/\b\d{1,2}\.\d{1,2}\.?(?:\d{4})?\s*(?:bis|und|-\\s*)\s*\d{1,2}\.\d{1,2}\.?(?:\d{4})?\b/gi, '');
+  cleanedTitle = cleanedTitle.replace(/\b\d{1,2}\.?\s*(?:bis|und|-\\s*)\s*\d{1,2}\.?\s*(?:januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)\b/gi, '');
+  
+  // Strip relative date keywords
   cleanedTitle = cleanedTitle.replace(/(?:^|[^a-zA-Z0-9äöüÄÖÜß])(heute|morgen|übermorgen)(?:$|[^a-zA-Z0-9äöüÄÖÜß])/gi, ' ');
   // Strip weekday phrases
   cleanedTitle = cleanedTitle.replace(/\b(nächsten|nächster|nächste|am)?\s*(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)\b/gi, '');
@@ -251,7 +320,7 @@ function parseGermanEventText(rawText, referenceDate = new Date()) {
   cleanedTitle = cleanedTitle.replace(/\b(ganztägig|ganztags|ganzen tag)\b/gi, '');
   
   // Strip common grammar particles and prepositions
-  cleanedTitle = cleanedTitle.replace(/\b(am|um|den|im|ein|eine|einen|für|von|bis)\b/gi, ' ');
+  cleanedTitle = cleanedTitle.replace(/\b(am|um|den|im|ein|eine|einen|für|von|bis|vom)\b/gi, ' ');
   // Clean up punctuation and whitespace
   cleanedTitle = cleanedTitle.replace(/[,.-]/g, ' ');
   cleanedTitle = cleanedTitle.replace(/\s+/g, ' ').trim();

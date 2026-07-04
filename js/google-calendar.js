@@ -223,6 +223,7 @@ class GoogleCalendarAPI {
       else if (titleLower.includes('wichtig') || titleLower.includes('achtung')) localEvent.category = 'wichtig';
       else if (titleLower.includes('fest') || titleLower.includes('feier')) localEvent.category = 'feier';
       else if (titleLower.includes('schließ') || titleLower.includes('schliess') || titleLower.includes('ferien')) localEvent.category = 'schliessung';
+      else if (titleLower.includes('urlaub') || titleLower.includes('krank') || titleLower.includes('frei') || titleLower.includes('fortbildung')) localEvent.category = 'urlaub';
     }
 
     if (apiEvent.start.date) {

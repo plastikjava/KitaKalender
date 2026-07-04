@@ -39,6 +39,8 @@
   --cat-feier-bg: rgba(147, 51, 234, 0.1);
   --cat-schliessung: #ea580c;
   --cat-schliessung-bg: rgba(234, 88, 12, 0.1);
+  --cat-urlaub: #db2777;
+  --cat-urlaub-bg: rgba(219, 39, 119, 0.1);
   
   /* Spacing & Layout */
   --border-radius-sm: 8px;
@@ -68,6 +70,7 @@
     --cat-wichtig-bg: rgba(220, 38, 38, 0.25);
     --cat-feier-bg: rgba(147, 51, 234, 0.25);
     --cat-schliessung-bg: rgba(234, 88, 12, 0.25);
+    --cat-urlaub-bg: rgba(219, 39, 119, 0.25);
   }
 }
 
@@ -529,6 +532,7 @@ body {
 .event-cat-wichtig { border-left-color: var(--cat-wichtig); background-color: var(--cat-wichtig-bg); color: var(--text-main); }
 .event-cat-feier { border-left-color: var(--cat-feier); background-color: var(--cat-feier-bg); color: var(--text-main); }
 .event-cat-schliessung { border-left-color: var(--cat-schliessung); background-color: var(--cat-schliessung-bg); color: var(--text-main); }
+.event-cat-urlaub { border-left-color: var(--cat-urlaub); background-color: var(--cat-urlaub-bg); color: var(--text-main); }
 
 /* --- WEEK VIEW & DAY VIEW --- */
 .week-view-container {
@@ -733,6 +737,8 @@ body {
 .list-event-card.event-cat-feier .list-event-tag { background-color: var(--cat-feier-bg); color: var(--cat-feier); }
 .list-event-card.event-cat-schliessung { border-left-color: var(--cat-schliessung); }
 .list-event-card.event-cat-schliessung .list-event-tag { background-color: var(--cat-schliessung-bg); color: var(--cat-schliessung); }
+.list-event-card.event-cat-urlaub { border-left-color: var(--cat-urlaub); }
+.list-event-card.event-cat-urlaub .list-event-tag { background-color: var(--cat-urlaub-bg); color: var(--cat-urlaub); }
 
 /* --- MODALS --- */
 .modal {
