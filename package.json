@@ -1,0 +1,12 @@
+{
+  "name": "kita-kalender",
+  "version": "1.0.0",
+  "description": "Kita Kalender PWA mit Spracheingabe",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["kita", "kalender", "pwa", "google-calendar"],
+  "author": "",
+  "license": "ISC"
+}

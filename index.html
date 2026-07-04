@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kita Team Kalender</title>
+  
+  <!-- PWA Settings -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kita Kalender">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#4f46e5">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css?v=3">
+</head>
+<body>
+  <!-- Global Error Logger for UI Debugging -->
+  <div id="debugErrorBanner" style="display:none; background:#fecaca; border:3px solid #ef4444; color:#991b1b; padding:16px; margin:16px; border-radius:8px; font-family:monospace; font-size:14px; z-index:9999; position:relative;">
+    <h3 style="margin-top:0; color:#b91c1c;">⚠️ JavaScript Fehler erkannt:</h3>
+    <p id="debugErrorMessage" style="margin-bottom:8px; white-space:pre-wrap;"></p>
+    <button onclick="document.getElementById('debugErrorBanner').style.display='none'" style="background:#ef4444; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">Schließen</button>
+  </div>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      const banner = document.getElementById('debugErrorBanner');
+      const msg = document.getElementById('debugErrorMessage');
+      if (banner && msg) {
+        banner.style.display = 'block';
+        msg.textContent = message + '\n\nin ' + source + ' Zeile ' + lineno + ':' + colno + '\n' + (error ? error.stack : '');
+      }
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      const banner = document.getElementById('debugErrorBanner');
+      const msg = document.getElementById('debugErrorMessage');
+      if (banner && msg) {
+        banner.style.display = 'block';
+        msg.textContent = 'Unhandled Promise Rejection:\n' + event.reason;
+      }
+    });
+  </script>
+
+  <!-- App Shell -->
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo">
+          <i class="ti ti-calendar-event"></i>
+          <span>Kita Team</span>
+        </div>
+        <h1 class="current-date-title" id="currentDateTitle">Juli 2026</h1>
+      </div>
+      
+      <div class="header-right" style="display: flex; gap: 8px; align-items: center;">
+        <button id="resetAppBtn" class="btn btn-secondary btn-icon" style="color: var(--danger);" title="App zurücksetzen">
+          <i class="ti ti-trash"></i>
+        </button>
+        <button id="settingsBtn" class="btn btn-secondary btn-icon" title="Einstellungen" onclick="const modal = document.getElementById('settingsModal'); if (modal) { modal.classList.remove('hidden'); modal.style.opacity = '1'; modal.style.pointerEvents = 'auto'; }">
+          <i class="ti ti-settings"></i>
+        </button>
+        <!-- Google Calendar Auth status -->
+        <div id="authContainer">
+          <button id="loginBtn" class="btn btn-primary btn-icon-left">
+            <i class="ti ti-brand-google"></i> Login mit Google
+          </button>
+          <div id="userInfo" class="user-info hidden">
+            <span id="userName" class="user-name">Mitarbeiter</span>
+            <button id="logoutBtn" class="btn btn-ghost" title="Abmelden">
+              <i class="ti ti-logout"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Navigation & Voice Command Bar -->
+    <section class="control-panel">
+      <!-- Quick Voice/Text Input -->
+      <div class="quick-input-container">
+        <div class="input-wrapper">
+          <button id="micBtn" class="quick-mic-btn" title="Spracheingabe starten" type="button">
+            <i class="ti ti-microphone"></i>
+          </button>
+          <input type="text" id="quickInput" placeholder="Termin per Sprache oder Tastatur eingeben... (z.B. Elternabend am Donnerstag um 19 Uhr)" autocomplete="off">
+          <button id="parseBtn" class="btn btn-icon" title="Termin analysieren">
+            <i class="ti ti-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation & Views -->
+      <div class="navigation-controls">
+        <div class="view-selectors">
+          <button class="view-btn active" data-view="month">Monat</button>
+          <button class="view-btn" data-view="week">Woche</button>
+          <button class="view-btn" data-view="day">Tag</button>
+          <button class="view-btn" data-view="list">Liste (iPad-Info)</button>
+        </div>
+
+        <div class="navigation-buttons">
+          <button id="prevBtn" class="btn btn-secondary btn-icon" title="Vorherige"><i class="ti ti-chevron-left"></i></button>
+          <button id="todayBtn" class="btn btn-secondary">Heute</button>
+          <button id="nextBtn" class="btn btn-secondary btn-icon" title="Nächste"><i class="ti ti-chevron-right"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Calendar Workspace -->
+    <main class="calendar-workspace">
+      <!-- Loading indicator -->
+      <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <span>Kalender wird geladen...</span>
+      </div>
+
+      <!-- Calendar Views -->
+      <div id="monthView" class="calendar-view month-view"></div>
+      <div id="weekView" class="calendar-view week-view hidden"></div>
+      <div id="dayView" class="calendar-view day-view hidden"></div>
+      <div id="listView" class="calendar-view list-view hidden"></div>
+    </main>
+
+    <!-- Floating Action Button for Manual Entry -->
+    <button id="fabAdd" class="fab" title="Termin hinzufügen">
+      <i class="ti ti-plus"></i>
+    </button>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- Modal: Parser Confirmation (German voice input parsing confirmation) -->
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Termin-Vorschau</h2>
+        <button class="close-modal-btn"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="parsed-intro">Folgender Termin wurde erkannt:</p>
+        
+        <div class="parsed-card">
+          <div class="parsed-field">
+            <label>Titel</label>
+            <input type="text" id="confirmTitle" class="form-control">
+          </div>
+          <div class="parsed-date-time-grid">
+            <div class="parsed-field">
+              <label>Datum</label>
+              <input type="date" id="confirmDate" class="form-control">
+            </div>
+            <div class="parsed-field">
+              <label>Uhrzeit</label>
+              <input type="time" id="confirmTime" class="form-control">
+            </div>
+          </div>
+          <div class="parsed-date-time-grid">
+            <div class="parsed-field">
+              <label>Dauer</label>
+              <select id="confirmDuration" class="form-control">
+                <option value="30">30 Minuten</option>
+                <option value="60" selected>1 Stunde</option>
+                <option value="90">1.5 Stunden</option>
+                <option value="120">2 Stunden</option>
+                <option value="180">3 Stunden</option>
+                <option value="0">Ganztägig</option>
+              </select>
+            </div>
+            <div class="parsed-field">
+              <label>Kategorie</label>
+              <select id="confirmCategory" class="form-control">
+                <option value="team">🔵 Team-intern</option>
+                <option value="eltern">🟢 Eltern</option>
+                <option value="ausflug">🟡 Ausflüge</option>
+                <option value="wichtig">🔴 Wichtig</option>
+                <option value="feier">🟣 Feste & Feiern</option>
+                <option value="schliessung">🟠 Schließtag</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <p class="parsed-original">Originaleingabe: <span id="confirmOriginalText"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmCancelBtn" class="btn btn-secondary">Abbrechen</button>
+        <button id="confirmSaveBtn" class="btn btn-primary">Termin eintragen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Event Details / Add / Edit -->
+  <div id="eventModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="eventModalTitle">Termin hinzufügen</h2>
+        <button class="close-modal-btn"><i class="ti ti-x"></i></button>
+      </div>
+      <form id="eventForm">
+        <input type="hidden" id="eventId">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="eventTitle">Titel</label>
+            <input type="text" id="eventTitle" required class="form-control" placeholder="z.B. Teamsitzung">
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eventStartDate">Startdatum</label>
+              <input type="date" id="eventStartDate" required class="form-control">
+            </div>
+            <div class="form-group" id="startTimeGroup">
+              <label for="eventStartTime">Startzeit</label>
+              <input type="time" id="eventStartTime" class="form-control">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eventEndDate">Enddatum</label>
+              <input type="date" id="eventEndDate" required class="form-control">
+            </div>
+            <div class="form-group" id="endTimeGroup">
+              <label for="eventEndTime">Endzeit</label>
+              <input type="time" id="eventEndTime" class="form-control">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="eventAllDay"> Ganztägiger Termin
+            </label>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="eventCategory">Kategorie & Farbe</label>
+              <select id="eventCategory" class="form-control">
+                <option value="team">🔵 Team-intern</option>
+                <option value="eltern">🟢 Eltern</option>
+                <option value="ausflug">🟡 Ausflüge</option>
+                <option value="wichtig">🔴 Wichtig</option>
+                <option value="feier">🟣 Feste & Feiern</option>
+                <option value="schliessung">🟠 Schließtag</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="eventDescription">Beschreibung / Notizen</label>
+            <textarea id="eventDescription" class="form-control" rows="3" placeholder="Zusätzliche Informationen..."></textarea>
+          </div>
+
+          <div class="quick-templates-box">
+            <label>Schnellvorlagen:</label>
+            <div class="template-tags" id="templateTags">
+              <!-- Templates will be rendered here -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="deleteEventBtn" class="btn btn-danger hidden">Termin löschen</button>
+          <div class="footer-right-buttons">
+            <button type="button" id="cancelEventBtn" class="btn btn-secondary">Abbrechen</button>
+            <button type="submit" id="saveEventBtn" class="btn btn-primary">Speichern</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Settings -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Einstellungen</h2>
+        <button class="close-modal-btn" type="button" onclick="const modal = document.getElementById('settingsModal'); if (modal) { modal.classList.add('hidden'); }"><i class="ti ti-x"></i></button>
+      </div>
+      <form id="settingsForm">
+        <div class="modal-body">
+          <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted);">
+            Richte hier die Verbindung zu eurem Google Kalender ein. Die Einstellungen werden lokal auf diesem Gerät gespeichert.
+          </p>
+          
+          <div class="form-group">
+            <label for="settingsClientId">Google OAuth Client-ID</label>
+            <input type="text" id="settingsClientId" class="form-control" placeholder="123456-abcdef.apps.googleusercontent.com" required>
+            <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">
+              Erstellt im Google Cloud Portal als &quot;Webanwendung&quot;. Redirect-URI muss die URL dieser App sein.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label for="settingsCalendarId">Google Kalender-ID</label>
+            <input type="text" id="settingsCalendarId" class="form-control" placeholder="primary" value="primary" required>
+            <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">
+              &quot;primary&quot; für den Hauptkalender des Kontos, oder die E-Mail-Adresse eines freigegebenen Kalenders.
+            </span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="cancelSettingsBtn" class="btn btn-secondary" onclick="const modal = document.getElementById('settingsModal'); if (modal) { modal.classList.add('hidden'); }">Abbrechen</button>
+          <button type="submit" id="saveSettingsBtn" class="btn btn-primary">Speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Google Identity Services client script -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <!-- Custom Application Scripts -->
+  <script src="js/templates.js?v=5"></script>
+  <script src="js/parser.js?v=5"></script>
+  <script src="js/google-calendar.js?v=5"></script>
+  <script src="js/calendar.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+
+  <!-- Service Worker Debug: Unregister and clear cache to force fresh assets -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log('Service Worker deinstalliert');
+          });
+        }
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        for (let name of names) {
+          caches.delete(name).then(() => {
+            console.log('Cache gelöscht:', name);
+          });
+        }
+      });
+    }
+  </script>
+</body>
+</html>
