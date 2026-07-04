@@ -428,7 +428,7 @@ body {
 /* --- MONTH VIEW --- */
 .month-view-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: 100%;
   min-height: 500px;
   border-top: 1px solid var(--border-color);
@@ -440,7 +440,7 @@ body {
 
 .month-view-header {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background-color: var(--bg-card);
   text-align: center;
   font-weight: 600;
@@ -520,6 +520,12 @@ body {
   border-left: 3px solid transparent;
 }
 
+.event-badge.event-weekend-badge {
+  border: 1px dashed var(--text-muted);
+  font-style: italic;
+  opacity: 0.95;
+}
+
 .event-badge:hover {
   transform: translateX(2px);
   filter: brightness(0.95);
@@ -537,7 +543,7 @@ body {
 /* --- WEEK VIEW & DAY VIEW --- */
 .week-view-container {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(5, 1fr);
   background-color: var(--bg-card);
   border-radius: var(--border-radius-sm);
   border: 1px solid var(--border-color);

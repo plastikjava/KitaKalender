@@ -191,8 +191,8 @@ class CalendarRenderer {
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
 
-    // Day headers (Mon - Sun)
-    const daysOfWeek = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+    // Day headers (Mon - Fri)
+    const daysOfWeek = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
     const headerRow = document.createElement('div');
     headerRow.className = 'month-view-header';
     daysOfWeek.forEach(day => {
@@ -206,89 +206,101 @@ class CalendarRenderer {
     const grid = document.createElement('div');
     grid.className = 'month-view-grid';
 
-    // First day of month and total days
-    const firstDayIndex = new Date(year, month, 1).getDay(); // Sun=0, Mon=1...
-    const adjustedFirstDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Mon=0, Tue=1...
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    // First day of month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstDayIndex = firstDayOfMonth.getDay(); // Sun=0, Mon=1...
+    // Calculate difference to find the Monday of the first grid week
+    const diff = firstDayIndex === 0 ? -6 : 1 - firstDayIndex;
+    const startDate = new Date(year, month, 1);
+    startDate.setDate(startDate.getDate() + diff);
+    startDate.setHours(0,0,0,0);
 
     const todayStr = formatLocalDate(new Date());
 
-    // Build day grid cells (6 rows * 7 days = 42 cells)
-    let dayCount = 1;
-    let nextMonthDayCount = 1;
+    // Loop through 6 weeks, 5 days per week (Monday to Friday)
+    for (let w = 0; w < 6; w++) {
+      for (let d = 0; d < 5; d++) {
+        const cellDate = new Date(startDate);
+        cellDate.setDate(startDate.getDate() + (w * 7) + d);
+        const cellDateStr = formatLocalDate(cellDate);
 
-    for (let i = 0; i < 42; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'month-day';
-      
-      let cellDateStr = '';
-
-      if (i < adjustedFirstDay) {
-        // Previous month days
-        const prevDay = daysInPrevMonth - adjustedFirstDay + i + 1;
-        cell.classList.add('other-month');
-        cell.innerHTML = `<span class="month-day-number">${prevDay}</span>`;
-        const prevMonthDate = new Date(year, month - 1, prevDay);
-        cellDateStr = formatLocalDate(prevMonthDate);
-      } else if (dayCount > daysInMonth) {
-        // Next month days
-        cell.classList.add('other-month');
-        cell.innerHTML = `<span class="month-day-number">${nextMonthDayCount}</span>`;
-        const nextMonthDate = new Date(year, month + 1, nextMonthDayCount);
-        cellDateStr = formatLocalDate(nextMonthDate);
-        nextMonthDayCount++;
-      } else {
-        // Current month days
-        cell.innerHTML = `<span class="month-day-number">${dayCount}</span>`;
-        const currentMonthDate = new Date(year, month, dayCount);
-        cellDateStr = formatLocalDate(currentMonthDate);
+        const cell = document.createElement('div');
+        cell.className = 'month-day';
         
+        // Check if date belongs to previous/next month for styling
+        if (cellDate.getMonth() !== month) {
+          cell.classList.add('other-month');
+        }
+        
+        cell.innerHTML = `<span class="month-day-number">${cellDate.getDate()}</span>`;
+
         if (cellDateStr === todayStr) {
           cell.classList.add('today');
         }
-        dayCount++;
-      }
 
-      cell.dataset.date = cellDateStr;
+        cell.dataset.date = cellDateStr;
 
-      // Add double click / click to cell for creating event
-      cell.addEventListener('click', (e) => {
-        // Prevent click if clicking an event badge
-        if (e.target.closest('.event-badge')) return;
-        openEventModal({ startDate: cell.dataset.date, endDate: cell.dataset.date });
-      });
-
-      // Render events for this day
-      const dayEventsContainer = document.createElement('div');
-      dayEventsContainer.className = 'month-events-container';
-      
-      const dayEvents = this.events.filter(event => {
-        const start = event.startDate;
-        const end = event.endDate;
-        // Simple overlap check
-        return cellDateStr >= start && cellDateStr <= end;
-      });
-
-      dayEvents.forEach(event => {
-        const badge = document.createElement('div');
-        badge.className = `event-badge event-cat-${event.category}`;
-        
-        // Show time if not all day
-        const timeStr = event.isAllDay ? '' : `${event.startTime} `;
-        badge.textContent = `${timeStr}${event.title}`;
-        badge.title = `${event.title} (${event.isAllDay ? 'Ganztägig' : event.startTime + ' - ' + event.endTime})`;
-        
-        badge.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openEventModal(event);
+        // Add click to cell for creating event
+        cell.addEventListener('click', (e) => {
+          if (e.target.closest('.event-badge')) return;
+          openEventModal({ startDate: cell.dataset.date, endDate: cell.dataset.date });
         });
 
-        dayEventsContainer.appendChild(badge);
-      });
+        // Render events for this day (including weekend events if this day is Friday)
+        const dayEventsContainer = document.createElement('div');
+        dayEventsContainer.className = 'month-events-container';
+        
+        const isFriday = cellDate.getDay() === 5;
+        const saturdayStr = isFriday ? formatLocalDate(new Date(new Date(cellDate).setDate(cellDate.getDate() + 1))) : '';
+        const sundayStr = isFriday ? formatLocalDate(new Date(new Date(cellDate).setDate(cellDate.getDate() + 2))) : '';
 
-      cell.appendChild(dayEventsContainer);
-      grid.appendChild(cell);
+        const dayEvents = this.events.filter(event => {
+          const start = event.startDate;
+          const end = event.endDate;
+          
+          const matchesCell = cellDateStr >= start && cellDateStr <= end;
+          const matchesWeekend = isFriday && (
+            (saturdayStr >= start && saturdayStr <= end) ||
+            (sundayStr >= start && sundayStr <= end)
+          );
+          
+          return matchesCell || matchesWeekend;
+        });
+
+        dayEvents.forEach(event => {
+          const badge = document.createElement('div');
+          
+          // Check if it is a weekend event
+          let prefix = '';
+          let isWeekendEvent = false;
+          if (event.startDate === saturdayStr || event.endDate === saturdayStr) {
+            prefix = '🗓️ Sa: ';
+            isWeekendEvent = true;
+          } else if (event.startDate === sundayStr || event.endDate === sundayStr) {
+            prefix = '🗓️ So: ';
+            isWeekendEvent = true;
+          }
+
+          badge.className = `event-badge event-cat-${event.category}`;
+          if (isWeekendEvent) {
+            badge.classList.add('event-weekend-badge');
+          }
+          
+          const timeStr = event.isAllDay ? '' : `${event.startTime} `;
+          badge.textContent = `${prefix}${timeStr}${event.title}`;
+          badge.title = `${event.title} (${event.isAllDay ? 'Ganztägig' : event.startTime + ' - ' + event.endTime})`;
+          
+          badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openEventModal(event);
+          });
+
+          dayEventsContainer.appendChild(badge);
+        });
+
+        cell.appendChild(dayEventsContainer);
+        grid.appendChild(cell);
+      }
     }
 
     container.appendChild(grid);
@@ -322,8 +334,8 @@ class CalendarRenderer {
 
     const todayStr = formatLocalDate(new Date());
 
-    // Day Columns
-    for (let i = 0; i < 7; i++) {
+    // Day Columns (Mon-Fri)
+    for (let i = 0; i < 5; i++) {
       const columnDate = new Date(monday);
       columnDate.setDate(monday.getDate() + i);
       const colDateStr = formatLocalDate(columnDate);
@@ -361,23 +373,51 @@ class CalendarRenderer {
         openEventModal({ startDate: colDateStr, endDate: colDateStr, startTime: timeVal });
       });
 
-      // Filter and render events for this column day
+      // Filter and render events for this column day (including weekend events if Friday)
+      const isFriday = i === 4;
+      const saturdayStr = isFriday ? formatLocalDate(new Date(new Date(columnDate).setDate(columnDate.getDate() + 1))) : '';
+      const sundayStr = isFriday ? formatLocalDate(new Date(new Date(columnDate).setDate(columnDate.getDate() + 2))) : '';
+
       const colEvents = this.events.filter(event => {
-        return colDateStr >= event.startDate && colDateStr <= event.endDate;
+        const matchesCol = colDateStr >= event.startDate && colDateStr <= event.endDate;
+        const matchesWeekend = isFriday && (
+          (saturdayStr >= event.startDate && saturdayStr <= event.endDate) ||
+          (sundayStr >= event.startDate && sundayStr <= event.endDate)
+        );
+        return matchesCol || matchesWeekend;
       });
 
       colEvents.forEach(event => {
+        let prefix = '';
+        let isWeekendEvent = false;
+        if (event.startDate === saturdayStr || event.endDate === saturdayStr) {
+          prefix = '🗓️ Sa: ';
+          isWeekendEvent = true;
+        } else if (event.startDate === sundayStr || event.endDate === sundayStr) {
+          prefix = '🗓️ So: ';
+          isWeekendEvent = true;
+        }
+
         const badge = document.createElement('div');
         
-        if (event.isAllDay) {
+        // Render weekend events in Friday header
+        if (event.isAllDay || isWeekendEvent) {
           badge.className = `event-badge event-cat-${event.category}`;
+          if (isWeekendEvent) {
+            badge.classList.add('event-weekend-badge');
+          }
           badge.style.margin = '4px';
-          badge.textContent = `[Ganztägig] ${event.title}`;
+          
+          let timeLabel = '';
+          if (isWeekendEvent && !event.isAllDay) {
+            timeLabel = ` (${event.startTime})`;
+          }
+          badge.textContent = `${prefix}${event.title}${timeLabel}`;
+          
           badge.addEventListener('click', (e) => {
             e.stopPropagation();
             openEventModal(event);
           });
-          // Place all-day events in the header section
           header.appendChild(badge);
         } else {
           // Timed event positioned on axis
