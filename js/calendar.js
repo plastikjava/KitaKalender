@@ -1,3 +1,11 @@
+// Helper to format local Date object to YYYY-MM-DD without timezone shifts
+function formatLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 class CalendarRenderer {
   constructor(apiInstance) {
     this.api = apiInstance;
@@ -204,7 +212,7 @@ class CalendarRenderer {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
 
     // Build day grid cells (6 rows * 7 days = 42 cells)
     let dayCount = 1;
@@ -222,19 +230,19 @@ class CalendarRenderer {
         cell.classList.add('other-month');
         cell.innerHTML = `<span class="month-day-number">${prevDay}</span>`;
         const prevMonthDate = new Date(year, month - 1, prevDay);
-        cellDateStr = prevMonthDate.toISOString().split('T')[0];
+        cellDateStr = formatLocalDate(prevMonthDate);
       } else if (dayCount > daysInMonth) {
         // Next month days
         cell.classList.add('other-month');
         cell.innerHTML = `<span class="month-day-number">${nextMonthDayCount}</span>`;
         const nextMonthDate = new Date(year, month + 1, nextMonthDayCount);
-        cellDateStr = nextMonthDate.toISOString().split('T')[0];
+        cellDateStr = formatLocalDate(nextMonthDate);
         nextMonthDayCount++;
       } else {
         // Current month days
         cell.innerHTML = `<span class="month-day-number">${dayCount}</span>`;
         const currentMonthDate = new Date(year, month, dayCount);
-        cellDateStr = currentMonthDate.toISOString().split('T')[0];
+        cellDateStr = formatLocalDate(currentMonthDate);
         
         if (cellDateStr === todayStr) {
           cell.classList.add('today');
@@ -312,13 +320,13 @@ class CalendarRenderer {
     const monday = new Date(d.setDate(diff));
     monday.setHours(0,0,0,0);
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
 
     // Day Columns
     for (let i = 0; i < 7; i++) {
       const columnDate = new Date(monday);
       columnDate.setDate(monday.getDate() + i);
-      const colDateStr = columnDate.toISOString().split('T')[0];
+      const colDateStr = formatLocalDate(columnDate);
 
       const col = document.createElement('div');
       col.className = 'week-column';
@@ -433,7 +441,7 @@ class CalendarRenderer {
     }
     dayWrapper.appendChild(timeAxis);
 
-    const colDateStr = this.currentDate.toISOString().split('T')[0];
+    const colDateStr = formatLocalDate(this.currentDate);
 
     const col = document.createElement('div');
     col.className = 'week-column';
@@ -573,7 +581,7 @@ class CalendarRenderer {
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
 
     dates.forEach(dateStr => {
       const dateEvents = eventsByDate[dateStr];
