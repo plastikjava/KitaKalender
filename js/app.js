@@ -531,7 +531,7 @@ function initApp() {
     });
   }
 
-  // Try auto-login if token is already set in localStorage
+  // Try auto-login on startup
   setTimeout(() => {
     if (gcalAPI.isConfigured()) {
       gcalAPI.initTokenClient();
@@ -541,7 +541,13 @@ function initApp() {
         if (userName) userName.textContent = 'Mitarbeiter (Angemeldet)';
         renderer.refresh();
       } else {
-        gcalAPI.logout();
+        // Token expired or not present. Try silent auto-login.
+        try {
+          gcalAPI.login(true); // silent = true
+        } catch (e) {
+          console.warn('Silent login failed on startup:', e);
+          gcalAPI.logout();
+        }
       }
     } else {
       openModal(settingsModal);

@@ -71,7 +71,7 @@ class GoogleCalendarAPI {
     return this.accessToken && Date.now() < this.tokenExpiresAt;
   }
 
-  login() {
+  login(silent = false) {
     if (!this.isConfigured()) {
       throw new Error('Bitte konfiguriere zuerst die Google Client-ID in den Einstellungen.');
     }
@@ -79,8 +79,13 @@ class GoogleCalendarAPI {
       this.initTokenClient();
     }
     if (this.tokenClient) {
-      // Prompt user to select account and authorize
-      this.tokenClient.requestAccessToken({ prompt: 'consent' });
+      if (silent) {
+        // Try silent token request (no popup unless user needs to log in/consent)
+        this.tokenClient.requestAccessToken({ prompt: '' });
+      } else {
+        // Manual login: show account selector without forcing the consent screen again
+        this.tokenClient.requestAccessToken({ prompt: 'select_account' });
+      }
     } else {
       throw new Error('Google SDK konnte nicht initialisiert werden. Bitte lade die Seite neu.');
     }
